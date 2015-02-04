@@ -1,0 +1,90 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>br.gov.lexml</groupId>
+	<artifactId>lexml-recognizer-alteracao-legislacao</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>Reconhecedor LexML de alterações em legislação</name>
+	<description>Reconhecedor de alterações em legislação baseado no padrão LexML.</description>
+	<url>https://github.com/camaradosdeputadosoficial/lexml-recognizer-alteracao-legislacao</url>
+	<licenses>
+		<license>
+			<name>GNU General Public License, Version 3</name>
+			<url>http://www.gnu.org/licenses/gpl-3.0.html</url>
+			<distribution>manual</distribution>
+			<comments>This software depends on components distributed under GNU GPL.</comments>
+		</license>
+	</licenses>
+	<developers>
+		<developer>
+			<name>Edmundo Andrade</name>
+			<email>edmundo@lia.ufc.br</email>
+			<organizationUrl>http://www.lia.ufc.br/~edmundo/</organizationUrl>
+		</developer>
+		<developer>
+			<name>André Schonrock</name>
+			<email>andre.schonrock@gmail.com</email>
+		</developer>
+		<developer>
+			<name>Bruno Moulin</name>
+			<email>brunomau@gmail.com</email>
+		</developer>
+	</developers>
+	<scm>
+		<connection>scm:git:git@github.com/camaradosdeputadosoficial/lexml-recognizer-alteracao-legislacao.git</connection>
+		<developerConnection>scm:git:git@github.com/camaradosdeputadosoficial/lexml-recognizer-alteracao-legislacao.git</developerConnection>
+		<url>git@github.com/camaradosdeputadosoficial/lexml-recognizer-alteracao-legislacao.git</url>
+	</scm>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.2</version>
+				<configuration>
+					<source>1.7</source>
+					<target>1.7</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-release-plugin</artifactId>
+				<version>2.5.1</version>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>2.4</version>
+				<executions>
+					<execution>
+						<id>attach-sources</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
+	<dependencies>
+		<dependency>
+			<groupId>br.gov.lexml</groupId>
+			<artifactId>lexml-parser-documento-articulado</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>2.3</version>
+		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.11</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+</project>
