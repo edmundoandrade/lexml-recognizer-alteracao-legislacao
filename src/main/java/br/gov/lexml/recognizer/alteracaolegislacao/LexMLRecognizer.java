@@ -22,11 +22,12 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.w3c.dom.Element;
 
 import br.gov.lexml.parser.documentoarticulado.LexMLParser;
-import br.gov.lexml.parser.documentoarticulado.LexMlUtil;
 
 public class LexMLRecognizer {
 
@@ -43,35 +44,41 @@ public class LexMLRecognizer {
 	public List<String> getDispositivosModificadores() {
 		List<String> lista = new ArrayList<String>();
 		for (Element dispositivo : lexMLParser.getArtigos()) {
-			String argDevice = "";
-			String trecho = dispositivo.getElementsByTagName("p").item(0).getTextContent();
-			if (matches(trecho) == true) {
-				argDevice += getTypeChange(trecho);
-				argDevice += " | " + getArtigoTypeChange(trecho);
-				argDevice += " | " + getDataPublicacao(trecho);
+			String content = dispositivo.getElementsByTagName("p").item(0).getTextContent();
+			List<AlteracaoDispositivo> listaAlteracao = recognizeChanges(content);
+			for (AlteracaoDispositivo alteracao : listaAlteracao) {
+				lista.add(alteracao.toString());
 			}
-			lista.add(argDevice);
 		}
 		return lista;
 	}
 
-	private String getDataPublicacao(String trecho) {
+	private List<AlteracaoDispositivo> recognizeChanges(String content) {
+		List<AlteracaoDispositivo> lista = new ArrayList<AlteracaoDispositivo>();
+		for (String rule : REGEX_DISPOSITIVO_CHANGE) {
+			if (content.matches(IGNORE_CASE_REGEX + rule)) {
+				lista.add(new AlteracaoDispositivo(getTypeChange(content), getDispositivoChanged(content), getDataVigencia(content)));
+			}
+		}
+		return lista;
+	}
+
+	private String getDataVigencia(String trecho) {
 		SimpleDateFormat formatterIn = new SimpleDateFormat("dd MMM yyyy");
 		SimpleDateFormat formatterOut = new SimpleDateFormat("dd/MM/yyyy");
 		String[] regex = { ".*\\s*Brasília,\\s(.*[0-9]{2}\\.*.[0-9])+" };
-		String dateInStringIn = LexMlUtil.extractMatch(lexMLParser.getDataLocalFecho(), regex).replace("de ", "");
+		String dateInStringIn = extractMatch(lexMLParser.getDataLocalFecho(), regex).replace("de ", "");
 		try {
 			Date date = formatterIn.parse(dateInStringIn);
 			return formatterOut.format(date);
 		} catch (ParseException e) {
-			e.printStackTrace();
+			throw new IllegalArgumentException(e);
 		}
-		return null;
 	}
 
-	private String getArtigoTypeChange(String trecho) {
+	private String getDispositivoChanged(String trecho) {
 		String[] array = { ".*\\s*Fica revogado o (art\\.*.[0-9]+)" };
-		return LexMlUtil.extractMatch(trecho, array).replace(".", "").replace(" ", "");
+		return extractMatch(trecho, array).replace(".", "").replace(" ", "");
 	}
 
 	private String getTypeChange(String line) {
@@ -85,13 +92,13 @@ public class LexMLRecognizer {
 		return "";
 	}
 
-	public boolean matches(String line) {
-		for (String rule : REGEX_DISPOSITIVO_CHANGE) {
-			if (line.matches(IGNORE_CASE_REGEX + rule)) {
-				return true;
+	private String extractMatch(String line, String[] regex) {
+		for (String rule : regex) {
+			Matcher matcher = Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(line);
+			if (matcher.find()) {
+				return matcher.group(1);
 			}
 		}
-		return false;
+		return null;
 	}
-
 }
