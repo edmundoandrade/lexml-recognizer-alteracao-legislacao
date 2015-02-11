@@ -21,7 +21,6 @@ import java.util.List;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import br.gov.lexml.parser.documentoarticulado.LexMLParserFromText;
@@ -29,11 +28,10 @@ import br.gov.lexml.parser.documentoarticulado.LexMLParserFromText;
 public class LexMLRecognizerTest {
 
 	@Test
-	@Ignore
 	public void detectDispositivosModificadores() {
 		LexMLRecognizer recognizer = new LexMLRecognizer(new LexMLParserFromText(sampleText("/input/IN-DOU-Lei 9792-1999.utf-8.txt")));
 		List<String> dispositivosModificadores = recognizer.getDispositivosModificadores();
-		Assert.assertThat(dispositivosModificadores, CoreMatchers.hasItem("revogacao | art112 | 15/04/1999"));
+		Assert.assertThat(dispositivosModificadores, CoreMatchers.hasItem("revogacao | art112 | 14/04/1999"));
 	}
 
 	private String sampleText(String resourceName) {

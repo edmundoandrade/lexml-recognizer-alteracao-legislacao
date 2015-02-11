@@ -17,17 +17,22 @@
  */
 package br.gov.lexml.recognizer.alteracaolegislacao;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import org.w3c.dom.Element;
 
 import br.gov.lexml.parser.documentoarticulado.LexMLParser;
+import br.gov.lexml.parser.documentoarticulado.LexMlUtil;
 
 public class LexMLRecognizer {
 
-	String[] TYPE_CHANGE = { "revogado", "acrescimo", "novaredacao" };
+	String[] TYPE_CHANGE = { "revogacao", "acrescimo", "novaredacao" };
 	String[] REGEX_DISPOSITIVO_CHANGE = { "^.*\\s*Fica revogado o\\s.*$" };
+	private final String IGNORE_CASE_REGEX = "(?i)";
 
 	private LexMLParser lexMLParser;
 
@@ -36,12 +41,57 @@ public class LexMLRecognizer {
 	}
 
 	public List<String> getDispositivosModificadores() {
-		List<String> deviceModify = new ArrayList<>();
+		List<String> lista = new ArrayList<String>();
 		for (Element dispositivo : lexMLParser.getArtigos()) {
-			// if (LexMlUtil.matches(line, REGEX_DISPOSITIVO_CHANGE)) {
-			// deviceModify.add(line.replace("<p>", "").replace("</p>", ""));
-			// }
+			String argDevice = "";
+			String trecho = dispositivo.getElementsByTagName("p").item(0).getTextContent();
+			if (matches(trecho) == true) {
+				argDevice += getTypeChange(trecho);
+				argDevice += " | " + getArtigoTypeChange(trecho);
+				argDevice += " | " + getDataPublicacao(trecho);
+			}
+			lista.add(argDevice);
 		}
-		return deviceModify;
+		return lista;
 	}
+
+	private String getDataPublicacao(String trecho) {
+		SimpleDateFormat formatterIn = new SimpleDateFormat("dd MMM yyyy");
+		SimpleDateFormat formatterOut = new SimpleDateFormat("dd/MM/yyyy");
+		String[] regex = { ".*\\s*Brasília,\\s(.*[0-9]{2}\\.*.[0-9])+" };
+		String dateInStringIn = LexMlUtil.extractMatch(lexMLParser.getDataLocalFecho(), regex).replace("de ", "");
+		try {
+			Date date = formatterIn.parse(dateInStringIn);
+			return formatterOut.format(date);
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	private String getArtigoTypeChange(String trecho) {
+		String[] array = { ".*\\s*Fica revogado o (art\\.*.[0-9]+)" };
+		return LexMlUtil.extractMatch(trecho, array).replace(".", "").replace(" ", "");
+	}
+
+	private String getTypeChange(String line) {
+		int index = 0;
+		for (String rule : REGEX_DISPOSITIVO_CHANGE) {
+			if (line.matches(IGNORE_CASE_REGEX + rule)) {
+				return TYPE_CHANGE[index];
+			}
+			index++;
+		}
+		return "";
+	}
+
+	public boolean matches(String line) {
+		for (String rule : REGEX_DISPOSITIVO_CHANGE) {
+			if (line.matches(IGNORE_CASE_REGEX + rule)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 }
