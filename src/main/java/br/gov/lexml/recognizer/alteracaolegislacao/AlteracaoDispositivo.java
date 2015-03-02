@@ -15,4 +15,5 @@ public class AlteracaoDispositivo {
 	public String toString() {
 		return type + " | " + dispositivoChanged + " | " + dataVigencia;
 	}
+
 }

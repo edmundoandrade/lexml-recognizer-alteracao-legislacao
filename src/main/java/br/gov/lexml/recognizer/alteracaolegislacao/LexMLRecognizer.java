@@ -21,6 +21,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -31,6 +32,8 @@ import br.gov.lexml.parser.documentoarticulado.LexMLParser;
 
 public class LexMLRecognizer {
 
+	private static HashMap<String, String[]> dispositivos_modificadores = new HashMap<String, String[]>();
+
 	String[] TYPE_CHANGE = { "revogacao", "acrescimo", "novaredacao" };
 	String[] REGEX_DISPOSITIVO_CHANGE = { "^.*\\s*Fica revogado o\\s.*$" };
 	private final String IGNORE_CASE_REGEX = "(?i)";
@@ -39,6 +42,11 @@ public class LexMLRecognizer {
 
 	public LexMLRecognizer(LexMLParser lexMLParser) {
 		this.lexMLParser = lexMLParser;
+		initRegex();
+	}
+
+	private void initRegex() {
+		dispositivos_modificadores.put("revogacao", new String[] { "Fica revogado o", "Revoga-se o" });
 	}
 
 	public List<String> getDispositivosModificadores() {
@@ -55,9 +63,12 @@ public class LexMLRecognizer {
 
 	private List<AlteracaoDispositivo> recognizeChanges(String content) {
 		List<AlteracaoDispositivo> lista = new ArrayList<AlteracaoDispositivo>();
-		for (String rule : REGEX_DISPOSITIVO_CHANGE) {
-			if (content.matches(IGNORE_CASE_REGEX + rule)) {
-				lista.add(new AlteracaoDispositivo(getTypeChange(content), getDispositivoChanged(content), getDataVigencia(content)));
+		for (Object key : dispositivos_modificadores.keySet()) {
+			String[] regex = dispositivos_modificadores.get(key);
+			for (String rule : regex) {
+				if (content.matches(IGNORE_CASE_REGEX + "^.*\\s*" + rule + "\\s.*$")) {
+					lista.add(new AlteracaoDispositivo(getTypeChange(content), getDispositivoChanged(content), getDataVigencia(content)));
+				}
 			}
 		}
 		return lista;
@@ -67,7 +78,7 @@ public class LexMLRecognizer {
 		SimpleDateFormat formatterIn = new SimpleDateFormat("dd MMM yyyy");
 		SimpleDateFormat formatterOut = new SimpleDateFormat("dd/MM/yyyy");
 		String[] regex = { ".*\\s*Brasília,\\s(.*[0-9]{2}\\.*.[0-9])+" };
-		String dateInStringIn = extractMatch(lexMLParser.getDataLocalFecho(), regex).replace("de ", "");
+		String dateInStringIn = extractMatch(lexMLParser.getDataLocalFecho(), regex).replace("de ", "").replace("em ", "").trim();
 		try {
 			Date date = formatterIn.parse(dateInStringIn);
 			return formatterOut.format(date);
@@ -77,17 +88,21 @@ public class LexMLRecognizer {
 	}
 
 	private String getDispositivoChanged(String trecho) {
-		String[] array = { ".*\\s*Fica revogado o (art\\.*.[0-9]+)" };
-		return extractMatch(trecho, array).replace(".", "").replace(" ", "");
+		for (Object key : dispositivos_modificadores.keySet()) {
+			String[] regex = dispositivos_modificadores.get(key);
+			return extractArt(trecho, regex).replace(".", "").replace(" ", "");
+		}
+		return "";
 	}
 
 	private String getTypeChange(String line) {
-		int index = 0;
-		for (String rule : REGEX_DISPOSITIVO_CHANGE) {
-			if (line.matches(IGNORE_CASE_REGEX + rule)) {
-				return TYPE_CHANGE[index];
+		for (Object key : dispositivos_modificadores.keySet()) {
+			String[] regex = dispositivos_modificadores.get(key);
+			for (String rule : regex) {
+				if (line.matches(IGNORE_CASE_REGEX + "^.*\\s*" + rule + "\\s.*$")) {
+					return key.toString();
+				}
 			}
-			index++;
 		}
 		return "";
 	}
@@ -95,6 +110,16 @@ public class LexMLRecognizer {
 	private String extractMatch(String line, String[] regex) {
 		for (String rule : regex) {
 			Matcher matcher = Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(line);
+			if (matcher.find()) {
+				return matcher.group(1);
+			}
+		}
+		return null;
+	}
+
+	private String extractArt(String line, String[] regex) {
+		for (String rule : regex) {
+			Matcher matcher = Pattern.compile(IGNORE_CASE_REGEX + ".*\\s*" + rule + " (art\\.*.[0-9]+)").matcher(line);
 			if (matcher.find()) {
 				return matcher.group(1);
 			}
