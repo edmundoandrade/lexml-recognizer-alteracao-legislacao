@@ -28,7 +28,7 @@ import br.gov.lexml.parser.documentoarticulado.LexMLParserFromText;
 
 public class LexMLRecognizerTest {
 
-	@Ignore
+	@Test
 	public void detectDispositivosRevogadores() {
 		LexMLRecognizer recognizerLei9792 = new LexMLRecognizer(new LexMLParserFromText(sampleText("/input/IN-DOU-Lei 9792-1999.utf-8.txt")));
 		List<String> dispositivosModificadoresLei9792 = recognizerLei9792.getDispositivosModificadores();
@@ -36,11 +36,10 @@ public class LexMLRecognizerTest {
 	}
 
 	@Test
-	@Ignore
 	public void detectDispositivosAlteradores() {
-		LexMLRecognizer recognizerEmenda28 = new LexMLRecognizer(new LexMLParserFromText(sampleText("/input/EMENDA-CONSTITUCIONAL-Nº 28-2000.utf-8.txt")));
+		LexMLRecognizer recognizerEmenda28 = new LexMLRecognizer(new LexMLParserFromText(sampleText("/input/IN-DOU-Lei 8921-1994.utf-8.txt")));
 		List<String> dispositivosModificadoresEmenda28 = recognizerEmenda28.getDispositivosModificadores();
-		Assert.assertThat(dispositivosModificadoresEmenda28, CoreMatchers.hasItem("novaredacao | art7_inc29 | 25/05/2000"));
+		Assert.assertThat(dispositivosModificadoresEmenda28, CoreMatchers.hasItem("novaredacao | art131_inc2 | 25/07/1994"));
 	}
 
 	private String sampleText(String resourceName) {

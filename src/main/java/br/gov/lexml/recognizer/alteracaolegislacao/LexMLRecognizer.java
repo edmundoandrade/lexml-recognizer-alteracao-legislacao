@@ -34,8 +34,6 @@ public class LexMLRecognizer {
 
 	private static HashMap<String, String[]> dispositivos_modificadores = new HashMap<String, String[]>();
 
-	String[] TYPE_CHANGE = { "revogacao", "acrescimo", "novaredacao" };
-	String[] REGEX_DISPOSITIVO_CHANGE = { "^.*\\s*Fica revogado o\\s.*$" };
 	private final String IGNORE_CASE_REGEX = "(?i)";
 
 	private LexMLParser lexMLParser;
@@ -47,6 +45,7 @@ public class LexMLRecognizer {
 
 	private void initRegex() {
 		dispositivos_modificadores.put("revogacao", new String[] { "Fica revogado o", "Revoga-se o" });
+		dispositivos_modificadores.put("novaredacao", new String[] { "passa a vigorar com a seguinte" });
 	}
 
 	public List<String> getDispositivosModificadores() {
@@ -88,11 +87,19 @@ public class LexMLRecognizer {
 	}
 
 	private String getDispositivoChanged(String trecho) {
-		for (Object key : dispositivos_modificadores.keySet()) {
-			String[] regex = dispositivos_modificadores.get(key);
-			return extractArt(trecho, regex).replace(".", "").replace(" ", "");
+		String[] regex;
+		String retorno = "";
+		switch (getTypeChange(trecho)) {
+		case "revogacao":
+			regex = dispositivos_modificadores.get(getTypeChange(trecho));
+			retorno = extractArtRevogacao(trecho, regex);
+			break;
+		case "novaredacao":
+			regex = dispositivos_modificadores.get(getTypeChange(trecho));
+			retorno = extractArtNovaRedacao(trecho, regex);
+			break;
 		}
-		return "";
+		return retorno;
 	}
 
 	private String getTypeChange(String line) {
@@ -117,13 +124,81 @@ public class LexMLRecognizer {
 		return null;
 	}
 
-	private String extractArt(String line, String[] regex) {
+	private String extractArtRevogacao(String line, String[] regex) {
 		for (String rule : regex) {
 			Matcher matcher = Pattern.compile(IGNORE_CASE_REGEX + ".*\\s*" + rule + " (art\\.*.[0-9]+)").matcher(line);
 			if (matcher.find()) {
-				return matcher.group(1);
+				return matcher.group(1).replace(".", "").replace(" ", "");
 			}
 		}
 		return null;
 	}
+
+	private String extractArtNovaRedacao(String line, String[] regex) {
+		String prepare = null;
+		for (String rule : regex) {
+			Matcher matcher = Pattern.compile(IGNORE_CASE_REGEX + ".*\\s*.(inciso.\\s*.[A-Z]+).*\\s*(art\\.*.[0-9]+).*\\s*" + rule).matcher(line);
+			if (matcher.find()) {
+				prepare = matcher.group(2).replace(".", "").replace(" ", "");
+				prepare += "_inc" + romanToDecimal(matcher.group(1).replace("inciso", ""));
+			}
+		}
+		return prepare;
+	}
+
+	private int romanToDecimal(java.lang.String romanNumber) {
+		int decimal = 0;
+		int lastNumber = 0;
+		String romanNumeral = romanNumber.toUpperCase();
+		for (int x = romanNumeral.length() - 1; x >= 0; x--) {
+			char convertToDecimal = romanNumeral.charAt(x);
+
+			switch (convertToDecimal) {
+			case 'M':
+				decimal = processDecimal(1000, lastNumber, decimal);
+				lastNumber = 1000;
+				break;
+
+			case 'D':
+				decimal = processDecimal(500, lastNumber, decimal);
+				lastNumber = 500;
+				break;
+
+			case 'C':
+				decimal = processDecimal(100, lastNumber, decimal);
+				lastNumber = 100;
+				break;
+
+			case 'L':
+				decimal = processDecimal(50, lastNumber, decimal);
+				lastNumber = 50;
+				break;
+
+			case 'X':
+				decimal = processDecimal(10, lastNumber, decimal);
+				lastNumber = 10;
+				break;
+
+			case 'V':
+				decimal = processDecimal(5, lastNumber, decimal);
+				lastNumber = 5;
+				break;
+
+			case 'I':
+				decimal = processDecimal(1, lastNumber, decimal);
+				lastNumber = 1;
+				break;
+			}
+		}
+		return decimal;
+	}
+
+	private int processDecimal(int decimal, int lastNumber, int lastDecimal) {
+		if (lastNumber > decimal) {
+			return lastDecimal - decimal;
+		} else {
+			return lastDecimal + decimal;
+		}
+	}
+
 }
