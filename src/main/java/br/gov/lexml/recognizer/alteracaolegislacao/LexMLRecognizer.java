@@ -44,11 +44,11 @@ public class LexMLRecognizer {
 	}
 
 	private void initRegex() {
-		dispositivos_modificadores.put("revogacao", new String[] { "Fica revogado o", "Revoga-se o" });
+		dispositivos_modificadores.put("revogacao", new String[] { "Fica revogado o", "Revoga-se o", "revogadas" });
 		dispositivos_modificadores.put("novaredacao", new String[] { "passa a vigorar com a seguinte" });
 	}
 
-	public List<String> getDispositivosModificadores() {
+	public List<String> getDispositivosModificadores() throws ParseException {
 		List<String> lista = new ArrayList<String>();
 		for (Element dispositivo : lexMLParser.getArtigos()) {
 			String content = dispositivo.getElementsByTagName("p").item(0).getTextContent();
@@ -60,46 +60,63 @@ public class LexMLRecognizer {
 		return lista;
 	}
 
-	private List<AlteracaoDispositivo> recognizeChanges(String content) {
+	private List<AlteracaoDispositivo> recognizeChanges(String content) throws ParseException {
 		List<AlteracaoDispositivo> lista = new ArrayList<AlteracaoDispositivo>();
 		for (Object key : dispositivos_modificadores.keySet()) {
 			String[] regex = dispositivos_modificadores.get(key);
 			for (String rule : regex) {
 				if (content.matches(IGNORE_CASE_REGEX + "^.*\\s*" + rule + "\\s.*$")) {
-					lista.add(new AlteracaoDispositivo(getTypeChange(content), getDispositivoChanged(content), getDataVigencia(content)));
+					for (String dispositivoChanged : getDispositivoChanged(content)) {
+						lista.add(new AlteracaoDispositivo(getTypeChange(content), dispositivoChanged, getDataVigencia(content)));
+					}
 				}
 			}
 		}
 		return lista;
 	}
 
-	private String getDataVigencia(String trecho) {
-		SimpleDateFormat formatterIn = new SimpleDateFormat("dd MMM yyyy");
-		SimpleDateFormat formatterOut = new SimpleDateFormat("dd/MM/yyyy");
+	/**
+	 * Para resgatar a data da vigência deve-se verificar se existe prioritariamente: 1º Data Vigor No artigo modificador 2º Data de Publicação do documento 3º Data da Assinatura
+	 *
+	 * @param String
+	 *            trecho
+	 * 
+	 *
+	 * @return String datavigencia
+	 *
+	 *
+	 * @throws IndexOutOfBoundsException
+	 *             If there is no capturing group in the pattern with the given index
+	 */
+	private String getDataVigencia(String trecho) throws ParseException {
+
+		String dataVigor = extractMatch(trecho, new String[] { ".*[.\\p{L}]+.vigor.*([0-9]{2} de .\\p{L}+ de [0-9]{4})" });
+
+		if (dataVigor != null) {
+			return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd 'de' MMMM 'de' yyyy").parse(dataVigor));
+		}
+
 		String[] regex = { ".*\\s*Brasília,\\s(.*[0-9]{2}\\.*.[0-9])+" };
 		String dateInStringIn = extractMatch(lexMLParser.getDataLocalFecho(), regex).replace("de ", "").replace("em ", "").trim();
-		try {
-			Date date = formatterIn.parse(dateInStringIn);
-			return formatterOut.format(date);
-		} catch (ParseException e) {
-			throw new IllegalArgumentException(e);
-		}
+
+		return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd MMM yyyy").parse(dateInStringIn));
+
 	}
 
-	private String getDispositivoChanged(String trecho) {
+	private List<String> getDispositivoChanged(String trecho) {
 		String[] regex;
-		String retorno = "";
+		List<String> listDispositivos = new ArrayList<String>();
 		switch (getTypeChange(trecho)) {
 		case "revogacao":
 			regex = dispositivos_modificadores.get(getTypeChange(trecho));
-			retorno = extractArtRevogacao(trecho, regex);
+			listDispositivos = extractArtRevogacao(trecho, regex);
 			break;
 		case "novaredacao":
 			regex = dispositivos_modificadores.get(getTypeChange(trecho));
-			retorno = extractArtNovaRedacao(trecho, regex);
+			listDispositivos = extractArtNovaRedacao(trecho, regex);
 			break;
 		}
-		return retorno;
+		return listDispositivos;
 	}
 
 	private String getTypeChange(String line) {
@@ -124,26 +141,34 @@ public class LexMLRecognizer {
 		return null;
 	}
 
-	private String extractArtRevogacao(String line, String[] regex) {
+	private List<String> extractArtRevogacao(String line, String[] regex) {
 		for (String rule : regex) {
-			Matcher matcher = Pattern.compile(IGNORE_CASE_REGEX + ".*\\s*" + rule + " (art\\.*.[0-9]+)").matcher(line);
+			Matcher matcher = Pattern.compile(IGNORE_CASE_REGEX + rule + "(.*art\\.\\s+\\d+)+").matcher(line);
+			List<String> ocorrencias = new ArrayList<String>();
 			if (matcher.find()) {
-				return matcher.group(1).replace(".", "").replace(" ", "");
+				Matcher matcher1 = Pattern.compile("art\\.\\s+\\d+", Pattern.CASE_INSENSITIVE).matcher(matcher.group(1));
+				while (matcher1.find()) {
+					ocorrencias.add(matcher1.group().replace(".", "").replace(" ", ""));
+				}
+				return ocorrencias;
 			}
 		}
 		return null;
 	}
 
-	private String extractArtNovaRedacao(String line, String[] regex) {
+	private List<String> extractArtNovaRedacao(String line, String[] regex) {
 		String prepare = null;
+		List<String> ocorrencias = new ArrayList<String>();
 		for (String rule : regex) {
-			Matcher matcher = Pattern.compile(IGNORE_CASE_REGEX + ".*\\s*.(inciso.\\s*.[A-Z]+).*\\s*(art\\.*.[0-9]+).*\\s*" + rule).matcher(line);
+			Matcher matcher = Pattern.compile(".*\\s*.(inciso.\\s*.[A-Z]+).*\\s*(art\\.*.[0-9]+).*\\s*" + rule, Pattern.CASE_INSENSITIVE).matcher(line);
+
 			if (matcher.find()) {
 				prepare = matcher.group(2).replace(".", "").replace(" ", "");
 				prepare += "_inc" + romanToDecimal(matcher.group(1).replace("inciso", ""));
+				ocorrencias.add(prepare);
 			}
 		}
-		return prepare;
+		return ocorrencias;
 	}
 
 	private int romanToDecimal(java.lang.String romanNumber) {
