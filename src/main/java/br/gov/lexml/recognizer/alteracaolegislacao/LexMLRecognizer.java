@@ -20,7 +20,6 @@ package br.gov.lexml.recognizer.alteracaolegislacao;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -45,13 +44,15 @@ public class LexMLRecognizer {
 
 	private void initRegex() {
 		dispositivos_modificadores.put("revogacao", new String[] { "Fica revogado o", "Revoga-se o", "revogadas" });
-		dispositivos_modificadores.put("novaredacao", new String[] { "passa a vigorar com a seguinte" });
+		dispositivos_modificadores.put("novaredacao", new String[] { "passa a vigorar com a seguinte", "passa a vigorar com as seguintes" });
+		dispositivos_modificadores.put("acrescimo", new String[] { "passa a vigorar acrescido" });
 	}
 
 	public List<String> getDispositivosModificadores() throws ParseException {
 		List<String> lista = new ArrayList<String>();
 		for (Element dispositivo : lexMLParser.getArtigos()) {
-			String content = dispositivo.getElementsByTagName("p").item(0).getTextContent();
+			// String content = dispositivo.getElementsByTagName("p").item(0).getTextContent();
+			String content = dispositivo.getTextContent();
 			List<AlteracaoDispositivo> listaAlteracao = recognizeChanges(content);
 			for (AlteracaoDispositivo alteracao : listaAlteracao) {
 				lista.add(alteracao.toString());
@@ -65,7 +66,7 @@ public class LexMLRecognizer {
 		for (Object key : dispositivos_modificadores.keySet()) {
 			String[] regex = dispositivos_modificadores.get(key);
 			for (String rule : regex) {
-				if (content.matches(IGNORE_CASE_REGEX + "^.*\\s*" + rule + "\\s.*$")) {
+				if (Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(content).find()) {
 					for (String dispositivoChanged : getDispositivoChanged(content)) {
 						lista.add(new AlteracaoDispositivo(getTypeChange(content), dispositivoChanged, getDataVigencia(content)));
 					}
@@ -96,11 +97,16 @@ public class LexMLRecognizer {
 			return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd 'de' MMMM 'de' yyyy").parse(dataVigor));
 		}
 
-		String[] regex = { ".*\\s*Brasília,\\s(.*[0-9]{2}\\.*.[0-9])+" };
-		String dateInStringIn = extractMatch(lexMLParser.getDataLocalFecho(), regex).replace("de ", "").replace("em ", "").trim();
+		String dataAssinatura = extractMatch(lexMLParser.getDataLocalFecho(), new String[] { ".*\\s*Brasília,\\s(.*[0-9]{2}\\.*.[0-9])+" });
+		if (dataAssinatura != null) {
+			return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd MMM yyyy").parse(dataAssinatura.replace("de ", "").replace("em ", "").trim()));
+		}
+		String dataPublicacao = extractMatch(lexMLParser.getDataLocalFecho(), new String[] { "(\\d\\d\\.[\\d|\\d\\d]\\.\\d\\d\\d\\d)" });
+		if (dataPublicacao != null) {
+			return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd'.'M'.'yyyy").parse(dataPublicacao));
+		}
 
-		return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd MMM yyyy").parse(dateInStringIn));
-
+		return null;
 	}
 
 	private List<String> getDispositivoChanged(String trecho) {
@@ -115,6 +121,10 @@ public class LexMLRecognizer {
 			regex = dispositivos_modificadores.get(getTypeChange(trecho));
 			listDispositivos = extractArtNovaRedacao(trecho, regex);
 			break;
+		case "acrescimo":
+			regex = dispositivos_modificadores.get(getTypeChange(trecho));
+			listDispositivos = extractAcrescimo(trecho, regex);
+			break;
 		}
 		return listDispositivos;
 	}
@@ -123,7 +133,7 @@ public class LexMLRecognizer {
 		for (Object key : dispositivos_modificadores.keySet()) {
 			String[] regex = dispositivos_modificadores.get(key);
 			for (String rule : regex) {
-				if (line.matches(IGNORE_CASE_REGEX + "^.*\\s*" + rule + "\\s.*$")) {
+				if (Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(line).find()) {
 					return key.toString();
 				}
 			}
@@ -149,6 +159,7 @@ public class LexMLRecognizer {
 				Matcher matcher1 = Pattern.compile("art\\.\\s+\\d+", Pattern.CASE_INSENSITIVE).matcher(matcher.group(1));
 				while (matcher1.find()) {
 					ocorrencias.add(matcher1.group().replace(".", "").replace(" ", ""));
+					
 				}
 				return ocorrencias;
 			}
@@ -156,17 +167,40 @@ public class LexMLRecognizer {
 		return null;
 	}
 
+	private List<String> extractAcrescimo(String trecho, String[] regex) {
+		List<String> ocorrencias = new ArrayList<String>();
+		for (String rule : regex) {
+			Matcher matcher2 = Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(trecho);
+			if (matcher2.find()) {
+				Matcher mtc = Pattern.compile("(art\\.\\s+\\d+(-\\p{L})?)", Pattern.CASE_INSENSITIVE).matcher(trecho.substring(matcher2.start()));
+				while (mtc.find()) {
+					ocorrencias.add(mtc.group().replace(".", "").replace(" ", "").toLowerCase().replace("-a", "-A").replace("-b", "-B"));
+					//.replace("-A", "-a").replace("-b", "-B")
+				}
+			}
+		}
+		return ocorrencias;
+	}
+
 	private List<String> extractArtNovaRedacao(String line, String[] regex) {
 		String prepare = null;
 		List<String> ocorrencias = new ArrayList<String>();
 		for (String rule : regex) {
-			Matcher matcher = Pattern.compile(".*\\s*.(inciso.\\s*.[A-Z]+).*\\s*(art\\.*.[0-9]+).*\\s*" + rule, Pattern.CASE_INSENSITIVE).matcher(line);
 
-			if (matcher.find()) {
-				prepare = matcher.group(2).replace(".", "").replace(" ", "");
-				prepare += "_inc" + romanToDecimal(matcher.group(1).replace("inciso", ""));
+			Matcher matcher1 = Pattern.compile(".*\\s*.(inciso.\\s*.[A-Z]+).*\\s*(art\\.*.[0-9]+).*\\s*" + rule, Pattern.CASE_INSENSITIVE).matcher(line);
+			if (matcher1.find()) {
+				prepare = matcher1.group(2).replace(".", "").replace(" ", "");
+				prepare += "_inc" + romanToDecimal(matcher1.group(1).replace("inciso", ""));
 				ocorrencias.add(prepare);
 			}
+			Matcher matcher2 = Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(line);
+			if (matcher2.find()) {
+				Matcher mtc = Pattern.compile("(art\\.\\s+\\d+(-\\p{L})?)", Pattern.CASE_INSENSITIVE).matcher(line.substring(matcher2.start()));
+				while (mtc.find()) {
+					ocorrencias.add(mtc.group().replace(".", "").replace(" ", "").toLowerCase());
+				}
+			}
+
 		}
 		return ocorrencias;
 	}

@@ -22,7 +22,6 @@ import java.util.List;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import br.gov.lexml.parser.documentoarticulado.LexMLParserFromText;
@@ -51,6 +50,21 @@ public class LexMLRecognizerTest {
 		Assert.assertThat(dispositivosModificadoresLei6533, CoreMatchers.hasItem("revogacao | art480 | 19/08/1978"));
 		Assert.assertThat(dispositivosModificadoresLei6533, CoreMatchers.hasItem("revogacao | art507 | 19/08/1978"));
 		Assert.assertThat(dispositivosModificadoresLei6533, CoreMatchers.hasItem("revogacao | art509 | 19/08/1978"));
+	}
+	
+	@Test
+	public void detectDispositivosAlteradoresC() throws ParseException {
+		LexMLRecognizer recognizerEmenda852015 = new LexMLRecognizer(new LexMLParserFromText(sampleText("/input/EMENDA-CONSTITUCIONAL-Nº 85-2015.utf-8.txt")));
+		List<String> dispositivosModificadoresEmenda852015= recognizerEmenda852015.getDispositivosModificadores();
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art23 | 27/02/2015"));
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art24 | 27/02/2015"));
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art167 | 27/02/2015"));
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art200 | 27/02/2015"));
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art213 | 27/02/2015"));
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art218 | 27/02/2015"));
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art219 | 27/02/2015"));
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("acrescimo | art219-A | 27/02/2015"));
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("acrescimo | art219-B | 27/02/2015"));
 	}
 
 	private String sampleText(String resourceName) {
