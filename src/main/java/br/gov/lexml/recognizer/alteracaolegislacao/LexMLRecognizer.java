@@ -43,8 +43,8 @@ public class LexMLRecognizer {
 	}
 
 	private void initRegex() {
-		dispositivos_modificadores.put("revogacao", new String[] { "Fica revogado o", "Revoga-se o", "revogadas" });
-		dispositivos_modificadores.put("novaredacao", new String[] { "passa a vigorar com a seguinte", "passa a vigorar com as seguintes" });
+		dispositivos_modificadores.put("revogacao", new String[] { "Fica revogado o", "Revoga-se o", "revogadas", "Revoga o" });
+		dispositivos_modificadores.put("novaredacao", new String[] { "(passa|passam) a vigorar com (a|as) (seguinte|seguintes)"});
 		dispositivos_modificadores.put("acrescimo", new String[] { "passa a vigorar acrescido" });
 	}
 
@@ -101,7 +101,7 @@ public class LexMLRecognizer {
 		if (dataAssinatura != null) {
 			return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd MMM yyyy").parse(dataAssinatura.replace("de ", "").replace("em ", "").trim()));
 		}
-		String dataPublicacao = extractMatch(lexMLParser.getDataLocalFecho(), new String[] { "(\\d\\d\\.[\\d|\\d\\d]\\.\\d\\d\\d\\d)" });
+		String dataPublicacao = extractMatch(lexMLParser.getDataLocalFecho(), new String[] { "((\\d|\\d\\d).(\\d|\\d\\d)\\.\\d\\d\\d\\d)" });
 		if (dataPublicacao != null) {
 			return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd'.'M'.'yyyy").parse(dataPublicacao));
 		}
@@ -159,7 +159,22 @@ public class LexMLRecognizer {
 				Matcher matcher1 = Pattern.compile("art\\.\\s+\\d+", Pattern.CASE_INSENSITIVE).matcher(matcher.group(1));
 				while (matcher1.find()) {
 					ocorrencias.add(matcher1.group().replace(".", "").replace(" ", ""));
-					
+
+				}
+				return ocorrencias;
+			}
+			matcher = Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(line);
+			if (matcher.find()) {
+
+				Matcher matcher_par = Pattern.compile("§.*\\s([0-9])º do (artigo\\s+\\d+)+", Pattern.CASE_INSENSITIVE).matcher(line);
+				String position = null;
+				while (matcher_par.find()) {
+					ocorrencias.add(matcher_par.group(2).replace("artigo", "art").replace(" ", "") + "_par" + matcher_par.group(1));
+//					position = rule.substring(matcher_par.start());
+				}
+				Matcher matcher2 = Pattern.compile("(artigo\\s+\\d+)+", Pattern.CASE_INSENSITIVE).matcher(line);
+				while (matcher2.find()) {
+					ocorrencias.add(matcher2.group().replace("artigo", "art").replace(" ", ""));
 				}
 				return ocorrencias;
 			}
@@ -175,7 +190,7 @@ public class LexMLRecognizer {
 				Matcher mtc = Pattern.compile("(art\\.\\s+\\d+(-\\p{L})?)", Pattern.CASE_INSENSITIVE).matcher(trecho.substring(matcher2.start()));
 				while (mtc.find()) {
 					ocorrencias.add(mtc.group().replace(".", "").replace(" ", "").toLowerCase().replace("-a", "-A").replace("-b", "-B"));
-					//.replace("-A", "-a").replace("-b", "-B")
+					// .replace("-A", "-a").replace("-b", "-B")
 				}
 			}
 		}
