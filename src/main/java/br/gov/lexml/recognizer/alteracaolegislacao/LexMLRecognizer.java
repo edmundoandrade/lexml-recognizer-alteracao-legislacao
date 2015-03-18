@@ -44,69 +44,55 @@ public class LexMLRecognizer {
 
 	private void initRegex() {
 		dispositivos_modificadores.put("revogacao", new String[] { "Fica revogado o", "Revoga-se o", "revogadas", "Revoga o" });
-		dispositivos_modificadores.put("novaredacao", new String[] { "(passa|passam) a vigorar com (a|as) (seguinte|seguintes)"});
+		dispositivos_modificadores.put("novaredacao", new String[] { "(passa|passam) a vigorar com (a|as) (seguinte|seguintes)" });
 		dispositivos_modificadores.put("acrescimo", new String[] { "passa a vigorar acrescido" });
 	}
 
-	public List<String> getDispositivosModificadores() throws ParseException {
+	public List<String> getDispositivosModificadores() {
 		List<String> lista = new ArrayList<String>();
 		for (Element dispositivo : lexMLParser.getArtigos()) {
-			// String content = dispositivo.getElementsByTagName("p").item(0).getTextContent();
 			String content = dispositivo.getTextContent();
 			List<AlteracaoDispositivo> listaAlteracao = recognizeChanges(content);
-			for (AlteracaoDispositivo alteracao : listaAlteracao) {
+			for (AlteracaoDispositivo alteracao : listaAlteracao)
 				lista.add(alteracao.toString());
-			}
 		}
 		return lista;
 	}
 
-	private List<AlteracaoDispositivo> recognizeChanges(String content) throws ParseException {
+	private List<AlteracaoDispositivo> recognizeChanges(String content) {
 		List<AlteracaoDispositivo> lista = new ArrayList<AlteracaoDispositivo>();
 		for (Object key : dispositivos_modificadores.keySet()) {
 			String[] regex = dispositivos_modificadores.get(key);
-			for (String rule : regex) {
-				if (Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(content).find()) {
-					for (String dispositivoChanged : getDispositivoChanged(content)) {
+			for (String rule : regex)
+				if (Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(content).find())
+					for (String dispositivoChanged : getDispositivoChanged(content))
 						lista.add(new AlteracaoDispositivo(getTypeChange(content), dispositivoChanged, getDataVigencia(content)));
-					}
-				}
-			}
 		}
 		return lista;
 	}
 
 	/**
 	 * Para resgatar a data da vigência deve-se verificar se existe prioritariamente: 1º Data Vigor No artigo modificador 2º Data de Publicação do documento 3º Data da Assinatura
-	 *
+	 * 
 	 * @param String
 	 *            trecho
-	 * 
-	 *
 	 * @return String datavigencia
-	 *
-	 *
-	 * @throws IndexOutOfBoundsException
-	 *             If there is no capturing group in the pattern with the given index
 	 */
-	private String getDataVigencia(String trecho) throws ParseException {
-
-		String dataVigor = extractMatch(trecho, new String[] { ".*[.\\p{L}]+.vigor.*([0-9]{2} de .\\p{L}+ de [0-9]{4})" });
-
-		if (dataVigor != null) {
-			return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd 'de' MMMM 'de' yyyy").parse(dataVigor));
+	private String getDataVigencia(String trecho) {
+		try {
+			String dataVigor = extractMatch(trecho, new String[] { ".*[.\\p{L}]+.vigor.*([0-9]{2} de .\\p{L}+ de [0-9]{4})" });
+			if (dataVigor != null)
+				return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd 'de' MMMM 'de' yyyy").parse(dataVigor));
+			String dataAssinatura = extractMatch(lexMLParser.getDataLocalFecho(), new String[] { ".*\\s*Brasília,\\s(.*[0-9]{2}\\.*.[0-9])+" });
+			if (dataAssinatura != null)
+				return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd MMM yyyy").parse(dataAssinatura.replace("de ", "").replace("em ", "").trim()));
+			String dataPublicacao = extractMatch(lexMLParser.getDataLocalFecho(), new String[] { "((\\d|\\d\\d).(\\d|\\d\\d)\\.\\d\\d\\d\\d)" });
+			if (dataPublicacao != null)
+				return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd'.'M'.'yyyy").parse(dataPublicacao));
+			return null;
+		} catch (ParseException e) {
+			throw new IllegalArgumentException(e);
 		}
-
-		String dataAssinatura = extractMatch(lexMLParser.getDataLocalFecho(), new String[] { ".*\\s*Brasília,\\s(.*[0-9]{2}\\.*.[0-9])+" });
-		if (dataAssinatura != null) {
-			return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd MMM yyyy").parse(dataAssinatura.replace("de ", "").replace("em ", "").trim()));
-		}
-		String dataPublicacao = extractMatch(lexMLParser.getDataLocalFecho(), new String[] { "((\\d|\\d\\d).(\\d|\\d\\d)\\.\\d\\d\\d\\d)" });
-		if (dataPublicacao != null) {
-			return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd'.'M'.'yyyy").parse(dataPublicacao));
-		}
-
-		return null;
 	}
 
 	private List<String> getDispositivoChanged(String trecho) {
@@ -132,11 +118,9 @@ public class LexMLRecognizer {
 	private String getTypeChange(String line) {
 		for (Object key : dispositivos_modificadores.keySet()) {
 			String[] regex = dispositivos_modificadores.get(key);
-			for (String rule : regex) {
-				if (Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(line).find()) {
+			for (String rule : regex)
+				if (Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(line).find())
 					return key.toString();
-				}
-			}
 		}
 		return "";
 	}
@@ -144,9 +128,8 @@ public class LexMLRecognizer {
 	private String extractMatch(String line, String[] regex) {
 		for (String rule : regex) {
 			Matcher matcher = Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(line);
-			if (matcher.find()) {
+			if (matcher.find())
 				return matcher.group(1);
-			}
 		}
 		return null;
 	}
@@ -157,25 +140,18 @@ public class LexMLRecognizer {
 			List<String> ocorrencias = new ArrayList<String>();
 			if (matcher.find()) {
 				Matcher matcher1 = Pattern.compile("art\\.\\s+\\d+", Pattern.CASE_INSENSITIVE).matcher(matcher.group(1));
-				while (matcher1.find()) {
+				while (matcher1.find())
 					ocorrencias.add(matcher1.group().replace(".", "").replace(" ", ""));
-
-				}
 				return ocorrencias;
 			}
 			matcher = Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(line);
 			if (matcher.find()) {
-
 				Matcher matcher_par = Pattern.compile("§.*\\s([0-9])º do (artigo\\s+\\d+)+", Pattern.CASE_INSENSITIVE).matcher(line);
-				String position = null;
-				while (matcher_par.find()) {
+				while (matcher_par.find())
 					ocorrencias.add(matcher_par.group(2).replace("artigo", "art").replace(" ", "") + "_par" + matcher_par.group(1));
-//					position = rule.substring(matcher_par.start());
-				}
 				Matcher matcher2 = Pattern.compile("(artigo\\s+\\d+)+", Pattern.CASE_INSENSITIVE).matcher(line);
-				while (matcher2.find()) {
+				while (matcher2.find())
 					ocorrencias.add(matcher2.group().replace("artigo", "art").replace(" ", ""));
-				}
 				return ocorrencias;
 			}
 		}
@@ -188,10 +164,8 @@ public class LexMLRecognizer {
 			Matcher matcher2 = Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(trecho);
 			if (matcher2.find()) {
 				Matcher mtc = Pattern.compile("(art\\.\\s+\\d+(-\\p{L})?)", Pattern.CASE_INSENSITIVE).matcher(trecho.substring(matcher2.start()));
-				while (mtc.find()) {
+				while (mtc.find())
 					ocorrencias.add(mtc.group().replace(".", "").replace(" ", "").toLowerCase().replace("-a", "-A").replace("-b", "-B"));
-					// .replace("-A", "-a").replace("-b", "-B")
-				}
 			}
 		}
 		return ocorrencias;
@@ -201,7 +175,6 @@ public class LexMLRecognizer {
 		String prepare = null;
 		List<String> ocorrencias = new ArrayList<String>();
 		for (String rule : regex) {
-
 			Matcher matcher1 = Pattern.compile(".*\\s*.(inciso.\\s*.[A-Z]+).*\\s*(art\\.*.[0-9]+).*\\s*" + rule, Pattern.CASE_INSENSITIVE).matcher(line);
 			if (matcher1.find()) {
 				prepare = matcher1.group(2).replace(".", "").replace(" ", "");
@@ -211,11 +184,9 @@ public class LexMLRecognizer {
 			Matcher matcher2 = Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(line);
 			if (matcher2.find()) {
 				Matcher mtc = Pattern.compile("(art\\.\\s+\\d+(-\\p{L})?)", Pattern.CASE_INSENSITIVE).matcher(line.substring(matcher2.start()));
-				while (mtc.find()) {
+				while (mtc.find())
 					ocorrencias.add(mtc.group().replace(".", "").replace(" ", "").toLowerCase());
-				}
 			}
-
 		}
 		return ocorrencias;
 	}
@@ -232,32 +203,26 @@ public class LexMLRecognizer {
 				decimal = processDecimal(1000, lastNumber, decimal);
 				lastNumber = 1000;
 				break;
-
 			case 'D':
 				decimal = processDecimal(500, lastNumber, decimal);
 				lastNumber = 500;
 				break;
-
 			case 'C':
 				decimal = processDecimal(100, lastNumber, decimal);
 				lastNumber = 100;
 				break;
-
 			case 'L':
 				decimal = processDecimal(50, lastNumber, decimal);
 				lastNumber = 50;
 				break;
-
 			case 'X':
 				decimal = processDecimal(10, lastNumber, decimal);
 				lastNumber = 10;
 				break;
-
 			case 'V':
 				decimal = processDecimal(5, lastNumber, decimal);
 				lastNumber = 5;
 				break;
-
 			case 'I':
 				decimal = processDecimal(1, lastNumber, decimal);
 				lastNumber = 1;
@@ -268,11 +233,7 @@ public class LexMLRecognizer {
 	}
 
 	private int processDecimal(int decimal, int lastNumber, int lastDecimal) {
-		if (lastNumber > decimal) {
-			return lastDecimal - decimal;
-		} else {
-			return lastDecimal + decimal;
-		}
+		return (int) (lastDecimal + decimal * Math.signum(lastNumber - decimal));
 	}
 
 }

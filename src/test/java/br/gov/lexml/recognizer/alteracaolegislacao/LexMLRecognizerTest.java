@@ -29,21 +29,10 @@ import br.gov.lexml.parser.documentoarticulado.LexMLParserFromText;
 public class LexMLRecognizerTest {
 
 	@Test
-	public void detectDispositivosRevogadores() throws ParseException {
+	public void detectDispositivosRevogacao() throws ParseException {
 		LexMLRecognizer recognizerLei9792 = new LexMLRecognizer(new LexMLParserFromText(sampleText("/input/IN-DOU-Lei 9792-1999.utf-8.txt")));
 		List<String> dispositivosModificadoresLei9792 = recognizerLei9792.getDispositivosModificadores();
 		Assert.assertThat(dispositivosModificadoresLei9792, CoreMatchers.hasItem("revogacao | art112 | 14/04/1999"));
-	}
-
-	@Test
-	public void detectDispositivosAlteradoresA() throws ParseException {
-		LexMLRecognizer recognizerLei8921 = new LexMLRecognizer(new LexMLParserFromText(sampleText("/input/IN-DOU-Lei 8921-1994.utf-8.txt")));
-		List<String> dispositivosModificadoresLei8921 = recognizerLei8921.getDispositivosModificadores();
-		Assert.assertThat(dispositivosModificadoresLei8921, CoreMatchers.hasItem("novaredacao | art131_inc2 | 25/07/1994"));
-	}
-
-	@Test
-	public void detectDispositivosAlteradoresB() throws ParseException {
 		LexMLRecognizer recognizerLei6533 = new LexMLRecognizer(new LexMLParserFromText(sampleText("/input/IN-DOU-Lei 6533-1978.utf-8.txt")));
 		List<String> dispositivosModificadoresLei6533 = recognizerLei6533.getDispositivosModificadores();
 		Assert.assertThat(dispositivosModificadoresLei6533, CoreMatchers.hasItem("revogacao | art35 | 19/08/1978"));
@@ -53,7 +42,14 @@ public class LexMLRecognizerTest {
 	}
 
 	@Test
-	public void detectDispositivosAlteradoresC() throws ParseException {
+	public void detectDispositivosNovaRedacao() throws ParseException {
+		LexMLRecognizer recognizerLei8921 = new LexMLRecognizer(new LexMLParserFromText(sampleText("/input/IN-DOU-Lei 8921-1994.utf-8.txt")));
+		List<String> dispositivosModificadoresLei8921 = recognizerLei8921.getDispositivosModificadores();
+		Assert.assertThat(dispositivosModificadoresLei8921, CoreMatchers.hasItem("novaredacao | art131_inc2 | 25/07/1994"));
+	}
+
+	@Test
+	public void detectDispositivosAcrescimoAndNovaredaco() throws ParseException {
 		LexMLRecognizer recognizerEmenda852015 = new LexMLRecognizer(new LexMLParserFromText(sampleText("/input/EMENDA-CONSTITUCIONAL-Nº 85-2015.utf-8.txt")));
 		List<String> dispositivosModificadoresEmenda852015 = recognizerEmenda852015.getDispositivosModificadores();
 		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art23 | 27/02/2015"));
@@ -68,7 +64,7 @@ public class LexMLRecognizerTest {
 	}
 
 	@Test
-	public void detectDispositivosAlteradoresD() throws ParseException {
+	public void detectDispositivosRevogacaoAndAcrescimo() throws ParseException {
 		LexMLRecognizer recognizerLei7033 = new LexMLRecognizer(new LexMLParserFromText(sampleText("/input/IN-DOU-Lei 7033-1982.utf-8.txt")));
 		List<String> dispositivosModificadoresEmenda7033 = recognizerLei7033.getDispositivosModificadores();
 		Assert.assertThat(dispositivosModificadoresEmenda7033, CoreMatchers.hasItem("revogacao | art899_par3 | 06/10/1982"));
