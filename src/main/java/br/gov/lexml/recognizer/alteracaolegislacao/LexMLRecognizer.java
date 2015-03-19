@@ -17,8 +17,6 @@
  */
 package br.gov.lexml.recognizer.alteracaolegislacao;
 
-import java.io.IOException;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -77,22 +75,12 @@ public class LexMLRecognizer {
 	 *
 	 * @param String
 	 *            trecho
-	 * 
-	 *
 	 * @return String datavigencia
-	 *
-	 *
-	 * @throws IndexOutOfBoundsException
-	 *             If there is no capturing group in the pattern with the given index
 	 */
 	private String getDataVigencia(String trecho) {
 		if (getDataVigor(trecho) != null)
 			return getDataVigor(trecho);
-		if (lexMLParser.getDataAssinatura() != null)
-			return lexMLParser.getDataAssinatura();
-		if (lexMLParser.getDataPublicacao() != null)
-			return lexMLParser.getDataPublicacao();
-		return null;
+		return lexMLParser.getDataPublicacao() == null ? lexMLParser.getDataAssinatura() : lexMLParser.getDataPublicacao();
 	}
 
 	private String getDataVigor(String trecho) {
@@ -189,7 +177,7 @@ public class LexMLRecognizer {
 			Matcher matcher1 = Pattern.compile(".*\\s*.(inciso.\\s*.[A-Z]+).*\\s*(art\\.*.[0-9]+).*\\s*" + rule, Pattern.CASE_INSENSITIVE).matcher(line);
 			if (matcher1.find()) {
 				prepare = matcher1.group(2).replace(".", "").replace(" ", "");
-				prepare += "_inc" + romanToDecimal(matcher1.group(1).replace("inciso", ""));
+				prepare += "_inc" + traduzirNumeralRomano(matcher1.group(1).replace("inciso", ""));
 				ocorrencias.add(prepare);
 			}
 			Matcher matcher2 = Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(line);
@@ -202,57 +190,18 @@ public class LexMLRecognizer {
 		return ocorrencias;
 	}
 
-	private int romanToDecimal(java.lang.String romanNumber) {
-		int decimal = 0;
-		int lastNumber = 0;
-		String romanNumeral = romanNumber.toUpperCase();
-		for (int x = romanNumeral.length() - 1; x >= 0; x--) {
-			char convertToDecimal = romanNumeral.charAt(x);
-
-			switch (convertToDecimal) {
-			case 'M':
-				decimal = processDecimal(1000, lastNumber, decimal);
-				lastNumber = 1000;
-				break;
-			case 'D':
-				decimal = processDecimal(500, lastNumber, decimal);
-				lastNumber = 500;
-				break;
-			case 'C':
-				decimal = processDecimal(100, lastNumber, decimal);
-				lastNumber = 100;
-				break;
-			case 'L':
-				decimal = processDecimal(50, lastNumber, decimal);
-				lastNumber = 50;
-				break;
-			case 'X':
-				decimal = processDecimal(10, lastNumber, decimal);
-				lastNumber = 10;
-				break;
-			case 'V':
-				decimal = processDecimal(5, lastNumber, decimal);
-				lastNumber = 5;
-				break;
-			case 'I':
-				decimal = processDecimal(1, lastNumber, decimal);
-				lastNumber = 1;
-				break;
-			}
+	private int traduzirNumeralRomano(String texto) {
+		int n = 0;
+		int numeralDaDireita = 0;
+		for (int i = texto.length() - 1; i >= 0; i--) {
+			int valor = (int) traduzirNumeralRomano(texto.charAt(i));
+			n += valor * Math.signum(valor + 0.5 - numeralDaDireita);
+			numeralDaDireita = valor;
 		}
-		return decimal;
+		return n;
 	}
 
-	private int processDecimal(int decimal, int lastNumber, int lastDecimal) {
-		return (int) (lastDecimal + decimal * Math.signum(lastNumber - decimal));
+	private double traduzirNumeralRomano(char caractere) {
+		return Math.floor(Math.pow(10, "IXCM".indexOf(caractere))) + 5 * Math.floor(Math.pow(10, "VLD".indexOf(caractere)));
 	}
-
-	
-//	public static int processDecimal(int decimal, int lastNumber, int lastDecimal) {
-//		if (lastNumber > decimal) {
-//			return lastDecimal - decimal;
-//		} else {
-//			return lastDecimal + decimal;
-//		}
-//	}
 }
