@@ -17,6 +17,7 @@
  */
 package br.gov.lexml.recognizer.alteracaolegislacao;
 
+import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -73,26 +74,36 @@ public class LexMLRecognizer {
 
 	/**
 	 * Para resgatar a data da vigência deve-se verificar se existe prioritariamente: 1º Data Vigor No artigo modificador 2º Data de Publicação do documento 3º Data da Assinatura
-	 * 
+	 *
 	 * @param String
 	 *            trecho
+	 * 
+	 *
 	 * @return String datavigencia
+	 *
+	 *
+	 * @throws IndexOutOfBoundsException
+	 *             If there is no capturing group in the pattern with the given index
 	 */
 	private String getDataVigencia(String trecho) {
-		try {
-			String dataVigor = extractMatch(trecho, new String[] { ".*[.\\p{L}]+.vigor.*([0-9]{2} de .\\p{L}+ de [0-9]{4})" });
-			if (dataVigor != null)
+		if (getDataVigor(trecho) != null)
+			return getDataVigor(trecho);
+		if (lexMLParser.getDataAssinatura() != null)
+			return lexMLParser.getDataAssinatura();
+		if (lexMLParser.getDataPublicacao() != null)
+			return lexMLParser.getDataPublicacao();
+		return null;
+	}
+
+	private String getDataVigor(String trecho) {
+		String dataVigor = extractMatch(trecho, new String[] { ".*[.\\p{L}]+.vigor.*([0-9]{2} de .\\p{L}+ de [0-9]{4})" });
+		if (dataVigor != null)
+			try {
 				return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd 'de' MMMM 'de' yyyy").parse(dataVigor));
-			String dataAssinatura = extractMatch(lexMLParser.getDataLocalFecho(), new String[] { ".*\\s*Brasília,\\s(.*[0-9]{2}\\.*.[0-9])+" });
-			if (dataAssinatura != null)
-				return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd MMM yyyy").parse(dataAssinatura.replace("de ", "").replace("em ", "").trim()));
-			String dataPublicacao = extractMatch(lexMLParser.getDataLocalFecho(), new String[] { "((\\d|\\d\\d).(\\d|\\d\\d)\\.\\d\\d\\d\\d)" });
-			if (dataPublicacao != null)
-				return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd'.'M'.'yyyy").parse(dataPublicacao));
-			return null;
-		} catch (ParseException e) {
-			throw new IllegalArgumentException(e);
-		}
+			} catch (Exception e) {
+				throw new IllegalArgumentException(e);
+			}
+		return null;
 	}
 
 	private List<String> getDispositivoChanged(String trecho) {
@@ -236,4 +247,12 @@ public class LexMLRecognizer {
 		return (int) (lastDecimal + decimal * Math.signum(lastNumber - decimal));
 	}
 
+	
+//	public static int processDecimal(int decimal, int lastNumber, int lastDecimal) {
+//		if (lastNumber > decimal) {
+//			return lastDecimal - decimal;
+//		} else {
+//			return lastDecimal + decimal;
+//		}
+//	}
 }
