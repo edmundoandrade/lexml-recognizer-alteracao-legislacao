@@ -78,20 +78,9 @@ public class LexMLRecognizer {
 	 * @return String datavigencia
 	 */
 	private String getDataVigencia(String trecho) {
-		if (getDataVigor(trecho) != null)
-			return getDataVigor(trecho);
+		if (lexMLParser.getDataVigor() != null)
+			return lexMLParser.getDataVigor();
 		return lexMLParser.getDataPublicacao() == null ? lexMLParser.getDataAssinatura() : lexMLParser.getDataPublicacao();
-	}
-
-	private String getDataVigor(String trecho) {
-		String dataVigor = extractMatch(trecho, new String[] { ".*[.\\p{L}]+.vigor.*([0-9]{2} de .\\p{L}+ de [0-9]{4})" });
-		if (dataVigor != null)
-			try {
-				return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("dd 'de' MMMM 'de' yyyy").parse(dataVigor));
-			} catch (Exception e) {
-				throw new IllegalArgumentException(e);
-			}
-		return null;
 	}
 
 	private List<String> getDispositivoChanged(String trecho) {

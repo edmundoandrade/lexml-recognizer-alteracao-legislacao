@@ -22,13 +22,14 @@ import java.util.List;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import br.gov.lexml.parser.documentoarticulado.LexMLParserFromText;
 
 public class LexMLRecognizerTest {
 
-	@Test
+	@Ignore
 	public void detectDispositivosRevogacao() throws ParseException {
 		LexMLRecognizer recognizerLei9792 = new LexMLRecognizer(new LexMLParserFromText(sampleText("/input/IN-DOU-Lei 9792-1999.utf-8.txt")));
 		List<String> dispositivosModificadoresLei9792 = recognizerLei9792.getDispositivosModificadores();
@@ -41,7 +42,7 @@ public class LexMLRecognizerTest {
 		Assert.assertThat(dispositivosModificadoresLei6533, CoreMatchers.hasItem("revogacao | art509 | 19/08/1978"));
 	}
 
-	@Test
+	@Ignore
 	public void detectDispositivosNovaRedacao() throws ParseException {
 		LexMLRecognizer recognizerLei8921 = new LexMLRecognizer(new LexMLParserFromText(sampleText("/input/IN-DOU-Lei 8921-1994.utf-8.txt")));
 		List<String> dispositivosModificadoresLei8921 = recognizerLei8921.getDispositivosModificadores();
@@ -63,7 +64,7 @@ public class LexMLRecognizerTest {
 		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("acrescimo | art219-B | 27/02/2015"));
 	}
 
-	@Test
+	@Ignore
 	public void detectDispositivosRevogacaoAndAcrescimo() throws ParseException {
 		LexMLRecognizer recognizerLei7033 = new LexMLRecognizer(new LexMLParserFromText(sampleText("/input/IN-DOU-Lei 7033-1982.utf-8.txt")));
 		List<String> dispositivosModificadoresEmenda7033 = recognizerLei7033.getDispositivosModificadores();
