@@ -17,7 +17,6 @@
  */
 package br.gov.lexml.recognizer.alteracaolegislacao;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,8 +30,6 @@ import br.gov.lexml.parser.documentoarticulado.LexMLParser;
 public class LexMLRecognizer {
 
 	private static HashMap<String, String[]> dispositivos_modificadores = new HashMap<String, String[]>();
-
-	private final String IGNORE_CASE_REGEX = "(?i)";
 
 	private LexMLParser lexMLParser;
 
@@ -63,7 +60,7 @@ public class LexMLRecognizer {
 		for (Object key : dispositivos_modificadores.keySet()) {
 			String[] regex = dispositivos_modificadores.get(key);
 			for (String rule : regex)
-				if (Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(content).find())
+				if (matcherCompile(rule, content).find())
 					for (String dispositivoChanged : getDispositivoChanged(content))
 						lista.add(new AlteracaoDispositivo(getTypeChange(content), dispositivoChanged, getDataVigencia(content)));
 		}
@@ -107,39 +104,40 @@ public class LexMLRecognizer {
 		for (Object key : dispositivos_modificadores.keySet()) {
 			String[] regex = dispositivos_modificadores.get(key);
 			for (String rule : regex)
-				if (Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(line).find())
+				if (matcherCompile(rule, line).find())
 					return key.toString();
 		}
 		return "";
 	}
 
-	private String extractMatch(String line, String[] regex) {
-		for (String rule : regex) {
-			Matcher matcher = Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(line);
-			if (matcher.find())
-				return matcher.group(1);
-		}
-		return null;
-	}
-
 	private List<String> extractArtRevogacao(String line, String[] regex) {
+		List<String> ocorrencias = new ArrayList<String>();
+		Matcher matcher;
 		for (String rule : regex) {
-			Matcher matcher = Pattern.compile(IGNORE_CASE_REGEX + rule + "(.*art\\.\\s+\\d+)+").matcher(line);
-			List<String> ocorrencias = new ArrayList<String>();
+			matcher = matcherCompile(rule + "(.*art\\.\\s+\\d+)+", line);
 			if (matcher.find()) {
-				Matcher matcher1 = Pattern.compile("art\\.\\s+\\d+", Pattern.CASE_INSENSITIVE).matcher(matcher.group(1));
+				Matcher paraNum = matcherCompile("§\\s+(\\d+)\\p{L}.do.(art\\.\\s+\\d+)", matcher.group(1));
+				while (paraNum.find())
+					ocorrencias.add(formatArtOutput(paraNum.group(2)) + "_par" + paraNum.group(1));
+
+				Matcher paraTex = matcherCompile("Par\\p{L}grafo\\s+(\\p{L}+).do.(art\\.\\s+\\d+)", matcher.group(1));
+				while (paraTex.find())
+					ocorrencias.add(formatArtOutput(paraTex.group(2)) + "_par" + paraTex.group(1).replaceAll("\\p{L}nico", "1"));
+
+				Matcher matcher1 = matcherCompile("art\\.\\s+\\d+", matcher.group(1));
 				while (matcher1.find())
-					ocorrencias.add(matcher1.group().replace(".", "").replace(" ", ""));
+					ocorrencias.add(formatArtOutput(matcher1.group()));
 				return ocorrencias;
 			}
-			matcher = Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(line);
+
+			matcher = matcherCompile(rule, line);
 			if (matcher.find()) {
-				Matcher matcher_par = Pattern.compile("§.*\\s([0-9])º do (artigo\\s+\\d+)+", Pattern.CASE_INSENSITIVE).matcher(line);
+				Matcher matcher_par = matcherCompile("§.*\\s([0-9])º do (artigo\\s+\\d+)+", line);
 				while (matcher_par.find())
-					ocorrencias.add(matcher_par.group(2).replace("artigo", "art").replace(" ", "") + "_par" + matcher_par.group(1));
-				Matcher matcher2 = Pattern.compile("(artigo\\s+\\d+)+", Pattern.CASE_INSENSITIVE).matcher(line);
+					ocorrencias.add(formatArtOutput(matcher_par.group(2)) + "_par" + matcher_par.group(1));
+				Matcher matcher2 = matcherCompile("(artigo\\s+\\d+)+", line);
 				while (matcher2.find())
-					ocorrencias.add(matcher2.group().replace("artigo", "art").replace(" ", ""));
+					ocorrencias.add(formatArtOutput(matcher2.group()));
 				return ocorrencias;
 			}
 		}
@@ -149,11 +147,11 @@ public class LexMLRecognizer {
 	private List<String> extractAcrescimo(String trecho, String[] regex) {
 		List<String> ocorrencias = new ArrayList<String>();
 		for (String rule : regex) {
-			Matcher matcher2 = Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(trecho);
+			Matcher matcher2 = matcherCompile(rule, trecho);
 			if (matcher2.find()) {
-				Matcher mtc = Pattern.compile("(art\\.\\s+\\d+(-\\p{L})?)", Pattern.CASE_INSENSITIVE).matcher(trecho.substring(matcher2.start()));
+				Matcher mtc = matcherCompile("(art\\.\\s+\\d+(-\\p{L})?)", trecho.substring(matcher2.start()));
 				while (mtc.find())
-					ocorrencias.add(mtc.group().replace(".", "").replace(" ", "").toLowerCase().replace("-a", "-A").replace("-b", "-B"));
+					ocorrencias.add(formatArtOutput(mtc.group()));
 			}
 		}
 		return ocorrencias;
@@ -163,17 +161,17 @@ public class LexMLRecognizer {
 		String prepare = null;
 		List<String> ocorrencias = new ArrayList<String>();
 		for (String rule : regex) {
-			Matcher matcher1 = Pattern.compile(".*\\s*.(inciso.\\s*.[A-Z]+).*\\s*(art\\.*.[0-9]+).*\\s*" + rule, Pattern.CASE_INSENSITIVE).matcher(line);
+			Matcher matcher1 = matcherCompile(".*\\s*.(inciso.\\s*.[A-Z]+).*\\s*(art\\.*.[0-9]+).*\\s*" + rule, line);
 			if (matcher1.find()) {
-				prepare = matcher1.group(2).replace(".", "").replace(" ", "");
+				prepare = formatArtOutput(matcher1.group(2));
 				prepare += "_inc" + traduzirNumeralRomano(matcher1.group(1).replace("inciso", ""));
 				ocorrencias.add(prepare);
 			}
-			Matcher matcher2 = Pattern.compile(IGNORE_CASE_REGEX + rule).matcher(line);
+			Matcher matcher2 = matcherCompile(rule, line);
 			if (matcher2.find()) {
-				Matcher mtc = Pattern.compile("(art\\.\\s+\\d+(-\\p{L})?)", Pattern.CASE_INSENSITIVE).matcher(line.substring(matcher2.start()));
+				Matcher mtc = matcherCompile("(art\\.\\s+\\d+(-\\p{L})?)", line.substring(matcher2.start()));
 				while (mtc.find())
-					ocorrencias.add(mtc.group().replace(".", "").replace(" ", "").toLowerCase());
+					ocorrencias.add(formatArtOutput(mtc.group()));
 			}
 		}
 		return ocorrencias;
@@ -192,5 +190,13 @@ public class LexMLRecognizer {
 
 	private double traduzirNumeralRomano(char caractere) {
 		return Math.floor(Math.pow(10, "IXCM".indexOf(caractere))) + 5 * Math.floor(Math.pow(10, "VLD".indexOf(caractere)));
+	}
+
+	private Matcher matcherCompile(String key, String content) {
+		return Pattern.compile(key, Pattern.CASE_INSENSITIVE).matcher(content);
+	}
+
+	private String formatArtOutput(String out) {
+		return out.replace(".", "").replace(" ", "").replace("artigo", "art").toLowerCase().replace("-a", "-A").replace("-b", "-B");
 	}
 }
