@@ -47,15 +47,15 @@ public class LexMLRecognizer {
 	public List<String> getDispositivosModificadores() {
 		List<String> lista = new ArrayList<String>();
 		for (Element dispositivo : lexMLParser.getArtigos()) {
-			String content = dispositivo.getTextContent();
-			List<AlteracaoDispositivo> listaAlteracao = recognizeChanges(content);
+			List<AlteracaoDispositivo> listaAlteracao = recognizeChanges(dispositivo);
 			for (AlteracaoDispositivo alteracao : listaAlteracao)
 				lista.add(alteracao.toString());
 		}
 		return lista;
 	}
 
-	private List<AlteracaoDispositivo> recognizeChanges(String content) {
+	private List<AlteracaoDispositivo> recognizeChanges(Element dispositivo) {
+		String content = dispositivo.getTextContent();
 		List<AlteracaoDispositivo> lista = new ArrayList<AlteracaoDispositivo>();
 		for (Object key : dispositivos_modificadores.keySet()) {
 			String[] regex = dispositivos_modificadores.get(key);
