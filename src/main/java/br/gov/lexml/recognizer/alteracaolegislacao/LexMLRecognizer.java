@@ -24,6 +24,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 import br.gov.lexml.parser.documentoarticulado.LexMLParser;
 
@@ -35,10 +37,6 @@ public class LexMLRecognizer {
 
 	public LexMLRecognizer(LexMLParser lexMLParser) {
 		this.lexMLParser = lexMLParser;
-		initRegex();
-	}
-
-	private void initRegex() {
 		dispositivos_modificadores.put("revogacao", new String[] { "Fica revogado o", "Revoga-se o", "revogadas", "Revoga o" });
 		dispositivos_modificadores.put("novaredacao", new String[] { "(passa|passam) a vigorar com (a|as) (seguinte|seguintes)" });
 		dispositivos_modificadores.put("acrescimo", new String[] { "passa a vigorar acrescido" });
@@ -55,126 +53,101 @@ public class LexMLRecognizer {
 	}
 
 	private List<AlteracaoDispositivo> recognizeChanges(Element dispositivo) {
-		String content = dispositivo.getTextContent();
 		List<AlteracaoDispositivo> lista = new ArrayList<AlteracaoDispositivo>();
-		for (Object key : dispositivos_modificadores.keySet()) {
-			String[] regex = dispositivos_modificadores.get(key);
-			for (String rule : regex)
-				if (matcherCompile(rule, content).find())
-					for (String dispositivoChanged : getDispositivoChanged(content))
-						lista.add(new AlteracaoDispositivo(getTypeChange(content), dispositivoChanged, getDataVigencia(content)));
-		}
+		for (String key : dispositivos_modificadores.keySet())
+			for (AlteracaoDispositivo dispositivoChanged : getDispositivoChanged(dispositivo, key))
+				lista.add(dispositivoChanged);
+		return lista;
+	}
+
+	// TODO André Schonrock usar estrutura de articulação (parâmetro
+	// dispositivo) para obter id do artigo, parágrafo, inciso ou alínea
+	private List<AlteracaoDispositivo> getDispositivoChanged(Element dispositivo, String key) {
+		List<AlteracaoDispositivo> lista = new ArrayList<AlteracaoDispositivo>();
+		String trecho = dispositivo.getTextContent();
+		for (String rule : dispositivos_modificadores.get(key))
+			if (matcherCompile(rule, trecho).find())
+				if (key.equals("revogacao"))
+					lista.addAll(extractArtRevogacao(trecho, key, rule));
+				else if (key.equals("acrescimo"))
+					lista.addAll(extractAcrescimo(trecho, key, rule));
+				else
+					lista.addAll(extractArtNovaRedacao(trecho, key, rule));
+		NodeList nodes = dispositivo.getChildNodes();
+		for (int i = 0; i < nodes.getLength(); i++)
+			if (nodes.item(i).getNodeType() == Node.ELEMENT_NODE)
+				lista.addAll(getDispositivoChanged((Element) nodes.item(i), key));
 		return lista;
 	}
 
 	/**
-	 * Para resgatar a data da vigência deve-se verificar se existe prioritariamente: 1º Data Vigor No artigo modificador 2º Data de Publicação do documento 3º Data da Assinatura
+	 * Para resgatar a data da vigência deve-se verificar se existe
+	 * prioritariamente: 1º Data Vigor No artigo modificador 2º Data de
+	 * Publicação do documento 3º Data da Assinatura
 	 *
-	 * @param String
-	 *            trecho
 	 * @return String datavigencia
 	 */
-	private String getDataVigencia(String trecho) {
+	private String getDataVigencia() {
 		if (lexMLParser.getDataVigor() != null)
 			return lexMLParser.getDataVigor();
 		return lexMLParser.getDataPublicacao() == null ? lexMLParser.getDataAssinatura() : lexMLParser.getDataPublicacao();
 	}
 
-	private List<String> getDispositivoChanged(String trecho) {
-		String[] regex;
-		List<String> listDispositivos = new ArrayList<String>();
-		switch (getTypeChange(trecho)) {
-		case "revogacao":
-			regex = dispositivos_modificadores.get(getTypeChange(trecho));
-			listDispositivos = extractArtRevogacao(trecho, regex);
-			break;
-		case "novaredacao":
-			regex = dispositivos_modificadores.get(getTypeChange(trecho));
-			listDispositivos = extractArtNovaRedacao(trecho, regex);
-			break;
-		case "acrescimo":
-			regex = dispositivos_modificadores.get(getTypeChange(trecho));
-			listDispositivos = extractAcrescimo(trecho, regex);
-			break;
+	private List<AlteracaoDispositivo> extractArtRevogacao(String line, String key, String rule) {
+		List<AlteracaoDispositivo> ocorrencias = new ArrayList<AlteracaoDispositivo>();
+		Matcher matcher = matcherCompile(rule + "(.*art\\.\\s+\\d+)+", line);
+		if (matcher.find()) {
+			Matcher paraNum = matcherCompile("§\\s+(\\d+)\\p{L}.do.(art\\.\\s+\\d+)", matcher.group(1));
+			while (paraNum.find())
+				ocorrencias.add(alteracao(key, paraNum.group(2) + "_par" + paraNum.group(1)));
+			Matcher paraTex = matcherCompile("Par\\p{L}grafo\\s+(\\p{L}+).do.(art\\.\\s+\\d+)", matcher.group(1));
+			while (paraTex.find())
+				ocorrencias.add(alteracao(key, paraTex.group(2) + "_par" + paraTex.group(1).replaceAll("\\p{L}nico", "1")));
+			Matcher matcher1 = matcherCompile("art\\.\\s+\\d+", matcher.group(1));
+			while (matcher1.find())
+				ocorrencias.add(alteracao(key, matcher1.group()));
+			return ocorrencias;
 		}
-		return listDispositivos;
-	}
-
-	private String getTypeChange(String line) {
-		for (Object key : dispositivos_modificadores.keySet()) {
-			String[] regex = dispositivos_modificadores.get(key);
-			for (String rule : regex)
-				if (matcherCompile(rule, line).find())
-					return key.toString();
-		}
-		return "";
-	}
-
-	private List<String> extractArtRevogacao(String line, String[] regex) {
-		List<String> ocorrencias = new ArrayList<String>();
-		Matcher matcher;
-		for (String rule : regex) {
-			matcher = matcherCompile(rule + "(.*art\\.\\s+\\d+)+", line);
-			if (matcher.find()) {
-				Matcher paraNum = matcherCompile("§\\s+(\\d+)\\p{L}.do.(art\\.\\s+\\d+)", matcher.group(1));
-				while (paraNum.find())
-					ocorrencias.add(formatArtOutput(paraNum.group(2)) + "_par" + paraNum.group(1));
-
-				Matcher paraTex = matcherCompile("Par\\p{L}grafo\\s+(\\p{L}+).do.(art\\.\\s+\\d+)", matcher.group(1));
-				while (paraTex.find())
-					ocorrencias.add(formatArtOutput(paraTex.group(2)) + "_par" + paraTex.group(1).replaceAll("\\p{L}nico", "1"));
-
-				Matcher matcher1 = matcherCompile("art\\.\\s+\\d+", matcher.group(1));
-				while (matcher1.find())
-					ocorrencias.add(formatArtOutput(matcher1.group()));
-				return ocorrencias;
-			}
-
-			matcher = matcherCompile(rule, line);
-			if (matcher.find()) {
-				Matcher matcher_par = matcherCompile("§.*\\s([0-9])º do (artigo\\s+\\d+)+", line);
-				while (matcher_par.find())
-					ocorrencias.add(formatArtOutput(matcher_par.group(2)) + "_par" + matcher_par.group(1));
-				Matcher matcher2 = matcherCompile("(artigo\\s+\\d+)+", line);
-				while (matcher2.find())
-					ocorrencias.add(formatArtOutput(matcher2.group()));
-				return ocorrencias;
-			}
+		matcher = matcherCompile(rule, line);
+		if (matcher.find()) {
+			Matcher matcher_par = matcherCompile("§.*\\s([0-9])º do (artigo\\s+\\d+)+", line);
+			while (matcher_par.find())
+				ocorrencias.add(alteracao(key, matcher_par.group(2) + "_par" + matcher_par.group(1)));
+			Matcher matcher2 = matcherCompile("(artigo\\s+\\d+)+", line);
+			while (matcher2.find())
+				ocorrencias.add(alteracao(key, matcher2.group()));
+			return ocorrencias;
 		}
 		return null;
 	}
 
-	private List<String> extractAcrescimo(String trecho, String[] regex) {
-		List<String> ocorrencias = new ArrayList<String>();
-		for (String rule : regex) {
-			Matcher matcher2 = matcherCompile(rule, trecho);
-			if (matcher2.find()) {
-				Matcher mtc = matcherCompile("(art\\.\\s+\\d+(-\\p{L})?)", trecho.substring(matcher2.start()));
-				while (mtc.find())
-					ocorrencias.add(formatArtOutput(mtc.group()));
-			}
+	private List<AlteracaoDispositivo> extractAcrescimo(String trecho, String key, String rule) {
+		List<AlteracaoDispositivo> ocorrencias = new ArrayList<AlteracaoDispositivo>();
+		Matcher matcher2 = matcherCompile(rule, trecho);
+		if (matcher2.find()) {
+			Matcher mtc = matcherCompile("(art\\.\\s+\\d+(-\\p{L})?)", trecho.substring(matcher2.start()));
+			while (mtc.find())
+				ocorrencias.add(alteracao(key, mtc.group()));
 		}
 		return ocorrencias;
 	}
 
-	private List<String> extractArtNovaRedacao(String line, String[] regex) {
-		String prepare = null;
-		List<String> ocorrencias = new ArrayList<String>();
-		for (String rule : regex) {
-			Matcher matcher1 = matcherCompile(".*\\s*.(inciso.\\s*.[A-Z]+).*\\s*(art\\.*.[0-9]+).*\\s*" + rule, line);
-			if (matcher1.find()) {
-				prepare = formatArtOutput(matcher1.group(2));
-				prepare += "_inc" + traduzirNumeralRomano(matcher1.group(1).replace("inciso", ""));
-				ocorrencias.add(prepare);
-			}
-			Matcher matcher2 = matcherCompile(rule, line);
-			if (matcher2.find()) {
-				Matcher mtc = matcherCompile("(art\\.\\s+\\d+(-\\p{L})?)", line.substring(matcher2.start()));
-				while (mtc.find())
-					ocorrencias.add(formatArtOutput(mtc.group()));
-			}
+	private List<AlteracaoDispositivo> extractArtNovaRedacao(String line, String key, String rule) {
+		List<AlteracaoDispositivo> ocorrencias = new ArrayList<AlteracaoDispositivo>();
+		Matcher matcher1 = matcherCompile(".*\\s*.(inciso.\\s*.[A-Z]+).*\\s*(art\\.*.[0-9]+).*\\s*" + rule, line);
+		if (matcher1.find())
+			ocorrencias.add(alteracao(key, matcher1.group(2) + "_inc" + traduzirNumeralRomano(matcher1.group(1).replace("inciso", ""))));
+		Matcher matcher2 = matcherCompile(rule, line);
+		if (matcher2.find()) {
+			Matcher mtc = matcherCompile("(art\\.\\s+\\d+(-\\p{L})?)", line.substring(matcher2.start()));
+			while (mtc.find())
+				ocorrencias.add(alteracao(key, mtc.group()));
 		}
 		return ocorrencias;
+	}
+
+	private AlteracaoDispositivo alteracao(String key, String id) {
+		return new AlteracaoDispositivo(key, formatArtOutput(id), getDataVigencia());
 	}
 
 	private int traduzirNumeralRomano(String texto) {
