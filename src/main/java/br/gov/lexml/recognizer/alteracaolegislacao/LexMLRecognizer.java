@@ -60,24 +60,39 @@ public class LexMLRecognizer {
 		return lista;
 	}
 
-	// TODO André Schonrock usar estrutura de articulação (parâmetro
-	// dispositivo) para obter id do artigo, parágrafo, inciso ou alínea
-	private List<AlteracaoDispositivo> getDispositivoChanged(Element dispositivo, String key) {
+	private List<AlteracaoDispositivo> getDispositivoChanged(Node dispositivo, String key) {
 		List<AlteracaoDispositivo> lista = new ArrayList<AlteracaoDispositivo>();
-		String trecho = dispositivo.getTextContent();
-		for (String rule : dispositivos_modificadores.get(key))
-			if (matcherCompile(rule, trecho).find())
-				if (key.equals("revogacao"))
-					lista.addAll(extractArtRevogacao(trecho, key, rule));
-				else if (key.equals("acrescimo"))
-					lista.addAll(extractAcrescimo(trecho, key, rule));
-				else
-					lista.addAll(extractArtNovaRedacao(trecho, key, rule));
-		NodeList nodes = dispositivo.getChildNodes();
-		for (int i = 0; i < nodes.getLength(); i++)
-			if (nodes.item(i).getNodeType() == Node.ELEMENT_NODE)
-				lista.addAll(getDispositivoChanged((Element) nodes.item(i), key));
+		boolean alteracaoFound = false;
+		if (dispositivo.getNodeType() == Node.TEXT_NODE) {
+			String trecho = dispositivo.getTextContent();
+			for (String rule : dispositivos_modificadores.get(key))
+				if (matcherCompile(rule, trecho).find()) {
+					alteracaoFound = true;
+					Node parent = dispositivo.getParentNode();
+					while (parent != null && "p".equals(parent.getNodeName()))
+						parent = parent.getParentNode();
+					String texto = parent.getTextContent();
+					if (key.equals("revogacao"))
+						lista.addAll(extractArtRevogacao(texto, key, rule));
+					else if (key.equals("acrescimo"))
+						lista.addAll(extractAcrescimo(texto, key, rule));
+					else
+						lista.addAll(extractArtNovaRedacao(texto, key, rule));
+				}
+		}
+		if (!alteracaoFound && !"Alteracao".equals(dispositivo.getNodeName())) {
+			NodeList nodes = dispositivo.getChildNodes();
+			for (int i = 0; i < nodes.getLength(); i++)
+				lista.addAll(getDispositivoChanged(nodes.item(i), key));
+		}
 		return lista;
+	}
+
+	private String id(Node dispositivo) {
+		if (dispositivo.getNodeType() != Node.ELEMENT_NODE)
+			return "";
+		String id = ((Element) dispositivo).getAttribute("id");
+		return id == null ? "" : ", id: " + id;
 	}
 
 	/**
