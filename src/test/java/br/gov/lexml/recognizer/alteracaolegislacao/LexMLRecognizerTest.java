@@ -22,7 +22,6 @@ import java.util.List;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import br.gov.lexml.parser.documentoarticulado.LexMLParserFromText;
@@ -46,36 +45,29 @@ public class LexMLRecognizerTest {
 	public void detectDispositivosNovaRedacao() throws ParseException {
 		LexMLRecognizer recognizerLei8921 = new LexMLRecognizer(new LexMLParserFromText(sampleText("/input/IN-DOU-Lei 8921-1994.utf-8.txt")));
 		List<String> dispositivosModificadoresLei8921 = recognizerLei8921.getDispositivosModificadores();
-		Assert.assertThat(dispositivosModificadoresLei8921, CoreMatchers.hasItem("novaredacao | art131_inc2 | 25/07/1994"));
+		Assert.assertThat(dispositivosModificadoresLei8921, CoreMatchers.hasItem("novaredacao | art131_cpt_inc2 | 25/07/1994"));
 	}
 
 	@Test
-	@Ignore
 	public void detectDispositivosAcrescimoAndNovaredaco() throws ParseException {
 		LexMLRecognizer recognizerEmenda852015 = new LexMLRecognizer(new LexMLParserFromText(sampleText("/input/EMENDA-CONSTITUCIONAL-Nº 85-2015.utf-8.txt")));
 		List<String> dispositivosModificadoresEmenda852015 = recognizerEmenda852015.getDispositivosModificadores();
-//		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art23 | 27/02/2015"));
-//		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art24 | 27/02/2015"));
-//		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art167 | 27/02/2015"));
-//		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art200 | 27/02/2015"));
-//		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art213 | 27/02/2015"));
-//		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art218 | 27/02/2015"));
-//		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art219 | 27/02/2015"));
-//		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("acrescimo | art219-A | 27/02/2015"));
-//		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("acrescimo | art219-B | 27/02/2015"));
-		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art23_inc5 | 27/02/2015"));
-		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art24_inc9 | 27/02/2015"));
+		Assert.assertEquals(15, dispositivosModificadoresEmenda852015.size());
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art23_cpt_inc5 | 27/02/2015"));
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art24_cpt_inc9 | 27/02/2015"));
 		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art167_par5 | 27/02/2015"));
-		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art200_inc5 | 27/02/2015"));
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art200_cpt_inc5 | 27/02/2015"));
 		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art213_par2 | 27/02/2015"));
 		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art218_cpt | 27/02/2015"));
 		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art218_par1 | 27/02/2015"));
 		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art218_par3 | 27/02/2015"));
 		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art218_par6 | 27/02/2015"));
 		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art218_par7 | 27/02/2015"));
-		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art219_par1 | 27/02/2015"));
-		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("acrescimo | art219-1 | 27/02/2015"));
-		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("acrescimo | art219-2 | 27/02/2015"));
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("novaredacao | art219_par1u | 27/02/2015"));
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("acrescimo | art219-1_cpt | 27/02/2015"));
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("acrescimo | art219-2_cpt | 27/02/2015"));
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("acrescimo | art219-2_par1 | 27/02/2015"));
+		Assert.assertThat(dispositivosModificadoresEmenda852015, CoreMatchers.hasItem("acrescimo | art219-2_par2 | 27/02/2015"));
 	}
 
 	@Test
@@ -84,10 +76,10 @@ public class LexMLRecognizerTest {
 		List<String> dispositivosModificadoresEmenda7033 = recognizerLei7033.getDispositivosModificadores();
 		Assert.assertThat(dispositivosModificadoresEmenda7033, CoreMatchers.hasItem("revogacao | art899_par3 | 06/10/1982"));
 		Assert.assertThat(dispositivosModificadoresEmenda7033, CoreMatchers.hasItem("revogacao | art902 | 06/10/1982"));
-		Assert.assertThat(dispositivosModificadoresEmenda7033, CoreMatchers.hasItem("novaredacao | art702 | 06/10/1982"));
-		Assert.assertThat(dispositivosModificadoresEmenda7033, CoreMatchers.hasItem("novaredacao | art894 | 06/10/1982"));
-		Assert.assertThat(dispositivosModificadoresEmenda7033, CoreMatchers.hasItem("novaredacao | art896 | 06/10/1982"));
-		Assert.assertThat(dispositivosModificadoresEmenda7033, CoreMatchers.hasItem("novaredacao | art9 | 06/10/1982"));
+		Assert.assertThat(dispositivosModificadoresEmenda7033, CoreMatchers.hasItem("novaredacao | art702_cpt_inc1_ali6 | 06/10/1982"));
+		Assert.assertThat(dispositivosModificadoresEmenda7033, CoreMatchers.hasItem("novaredacao | art894_cpt_ali2 | 06/10/1982"));
+		Assert.assertThat(dispositivosModificadoresEmenda7033, CoreMatchers.hasItem("novaredacao | art896_cpt_ali1 | 06/10/1982"));
+		Assert.assertThat(dispositivosModificadoresEmenda7033, CoreMatchers.hasItem("novaredacao | art9_cpt | 06/10/1982"));
 	}
 
 	private String sampleText(String resourceName) {

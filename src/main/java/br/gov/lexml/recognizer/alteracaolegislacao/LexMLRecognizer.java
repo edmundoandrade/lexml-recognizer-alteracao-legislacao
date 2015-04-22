@@ -44,55 +44,63 @@ public class LexMLRecognizer {
 
 	public List<String> getDispositivosModificadores() {
 		List<String> lista = new ArrayList<String>();
-		for (Element dispositivo : lexMLParser.getArtigos()) {
-			List<AlteracaoDispositivo> listaAlteracao = recognizeChanges(dispositivo);
-			for (AlteracaoDispositivo alteracao : listaAlteracao)
+		for (Element blocoAlteracao : blocosAlteracao())
+			for (AlteracaoDispositivo alteracao : recognizeChanges(blocoAlteracao))
 				lista.add(alteracao.toString());
-		}
-		return lista;
-	}
-
-	private List<AlteracaoDispositivo> recognizeChanges(Element dispositivo) {
-		List<AlteracaoDispositivo> lista = new ArrayList<AlteracaoDispositivo>();
-		for (String key : dispositivos_modificadores.keySet())
-			for (AlteracaoDispositivo dispositivoChanged : getDispositivoChanged(dispositivo, key))
-				lista.add(dispositivoChanged);
-		return lista;
-	}
-
-	private List<AlteracaoDispositivo> getDispositivoChanged(Node dispositivo, String key) {
-		List<AlteracaoDispositivo> lista = new ArrayList<AlteracaoDispositivo>();
-		boolean alteracaoFound = false;
-		if (dispositivo.getNodeType() == Node.TEXT_NODE) {
+		for (Element dispositivo : lexMLParser.getArtigos()) {
 			String trecho = dispositivo.getTextContent();
-			for (String rule : dispositivos_modificadores.get(key))
+			for (String rule : dispositivos_modificadores.get("revogacao"))
 				if (matcherCompile(rule, trecho).find()) {
-					alteracaoFound = true;
-					Node parent = dispositivo.getParentNode();
-					while (parent != null && "p".equals(parent.getNodeName()))
-						parent = parent.getParentNode();
-					String texto = parent.getTextContent();
-					if (key.equals("revogacao"))
-						lista.addAll(extractArtRevogacao(texto, key, rule));
-					else if (key.equals("acrescimo"))
-						lista.addAll(extractAcrescimo(texto, key, rule));
-					else
-						lista.addAll(extractArtNovaRedacao(texto, key, rule));
+					for (AlteracaoDispositivo alteracao : extractArtRevogacao(trecho, "revogacao", rule))
+						lista.add(alteracao.toString());
+					break;
 				}
 		}
-		if (!alteracaoFound && !"Alteracao".equals(dispositivo.getNodeName())) {
-			NodeList nodes = dispositivo.getChildNodes();
-			for (int i = 0; i < nodes.getLength(); i++)
-				lista.addAll(getDispositivoChanged(nodes.item(i), key));
-		}
 		return lista;
 	}
 
-	private String id(Node dispositivo) {
-		if (dispositivo.getNodeType() != Node.ELEMENT_NODE)
-			return "";
-		String id = ((Element) dispositivo).getAttribute("id");
-		return id == null ? "" : ", id: " + id;
+	private List<Element> blocosAlteracao() {
+		List<Element> lista = new ArrayList<Element>();
+		for (Element dispositivo : lexMLParser.getArtigos())
+			adicionarBlocosAlteracao(dispositivo, lista);
+		return lista;
+	}
+
+	private void adicionarBlocosAlteracao(Element dispositivo, List<Element> lista) {
+		if (dispositivo.getNodeName().equals("Alteracao")) {
+			lista.add(dispositivo);
+			return;
+		}
+		NodeList list = dispositivo.getChildNodes();
+		for (int i = 0; i < list.getLength(); i++)
+			if (list.item(i).getNodeType() == Node.ELEMENT_NODE)
+				adicionarBlocosAlteracao((Element) list.item(i), lista);
+	}
+
+	private List<AlteracaoDispositivo> recognizeChanges(Element blocoAlteracao) {
+		List<AlteracaoDispositivo> lista = new ArrayList<AlteracaoDispositivo>();
+		String trecho = blocoAlteracao.getPreviousSibling().getPreviousSibling().getTextContent();
+		for (String rule : dispositivos_modificadores.get("novaredacao"))
+			if (matcherCompile(rule, trecho).find()) {
+				extractDispositivoChanged(blocoAlteracao, "novaredacao", "", lista);
+				return lista;
+			}
+		extractDispositivoChanged(blocoAlteracao, "acrescimo", "", lista);
+		return lista;
+	}
+
+	private void extractDispositivoChanged(Element blocoAlteracao, String key, String href, List<AlteracaoDispositivo> lista) {
+		NodeList list = blocoAlteracao.getChildNodes();
+		for (int i = 0; i < list.getLength(); i++)
+			if (list.item(i).getNodeType() == Node.ELEMENT_NODE) {
+				Element element = (Element) list.item(i);
+				if (element.getNodeName().equals("p"))
+					lista.add(alteracao(key, href));
+				else if (element.hasAttribute("xlink:href"))
+					extractDispositivoChanged(element, key, element.getAttribute("xlink:href"), lista);
+				else
+					extractDispositivoChanged(element, key, href, lista);
+			}
 	}
 
 	/**
@@ -136,48 +144,8 @@ public class LexMLRecognizer {
 		return null;
 	}
 
-	private List<AlteracaoDispositivo> extractAcrescimo(String trecho, String key, String rule) {
-		List<AlteracaoDispositivo> ocorrencias = new ArrayList<AlteracaoDispositivo>();
-		Matcher matcher2 = matcherCompile(rule, trecho);
-		if (matcher2.find()) {
-			Matcher mtc = matcherCompile("(art\\.\\s+\\d+(-\\p{L})?)", trecho.substring(matcher2.start()));
-			while (mtc.find())
-				ocorrencias.add(alteracao(key, mtc.group()));
-		}
-		return ocorrencias;
-	}
-
-	private List<AlteracaoDispositivo> extractArtNovaRedacao(String line, String key, String rule) {
-		List<AlteracaoDispositivo> ocorrencias = new ArrayList<AlteracaoDispositivo>();
-		Matcher matcher1 = matcherCompile(".*\\s*.(inciso.\\s*.[A-Z]+).*\\s*(art\\.*.[0-9]+).*\\s*" + rule, line);
-		if (matcher1.find())
-			ocorrencias.add(alteracao(key, matcher1.group(2) + "_inc" + traduzirNumeralRomano(matcher1.group(1).replace("inciso", ""))));
-		Matcher matcher2 = matcherCompile(rule, line);
-		if (matcher2.find()) {
-			Matcher mtc = matcherCompile("(art\\.\\s+\\d+(-\\p{L})?)", line.substring(matcher2.start()));
-			while (mtc.find())
-				ocorrencias.add(alteracao(key, mtc.group()));
-		}
-		return ocorrencias;
-	}
-
 	private AlteracaoDispositivo alteracao(String key, String id) {
 		return new AlteracaoDispositivo(key, formatArtOutput(id), getDataVigencia());
-	}
-
-	private int traduzirNumeralRomano(String texto) {
-		int n = 0;
-		int numeralDaDireita = 0;
-		for (int i = texto.length() - 1; i >= 0; i--) {
-			int valor = (int) traduzirNumeralRomano(texto.charAt(i));
-			n += valor * Math.signum(valor + 0.5 - numeralDaDireita);
-			numeralDaDireita = valor;
-		}
-		return n;
-	}
-
-	private double traduzirNumeralRomano(char caractere) {
-		return Math.floor(Math.pow(10, "IXCM".indexOf(caractere))) + 5 * Math.floor(Math.pow(10, "VLD".indexOf(caractere)));
 	}
 
 	private Matcher matcherCompile(String key, String content) {
